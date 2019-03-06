@@ -1,0 +1,54 @@
+%FEM Northeastern University
+clear; clc; syms a(x) p(x) r(x) u(x);
+%{
+written by Parth B Patel NEU Class of '19, FEM HW04 year=2019
+this version of algorithm works for an EBC, for linearly varying a,p, and q values
+I commented "%change if need" if you want to change by the problem
+%}
+N=3; %number of elements
+L=1; %Total length/ span (for e.g. 0<x<L; L-0=L)
+Le=L/N; %length of one element
+x=0:L/N:L; % for the same size element
+%NBC, 'write NaN for beta (not for alpha) if not given'
+beta0=-1; betaL=NaN; alpha0=0; alphaL=0; %change if needed
+%EBC 'write NaN if not given'
+uL=3; u0=NaN; %change if needed
+a=1; p=10; q=-4; ma=0; mp=0.5; mq=0.25; %change if needed
+%% end of inputs
+axe=a*(1+(ma*x));
+pxe=p*(1+(mp*x));
+qxe=q*(1+(mq*x));
+Ka = zeros(N+1); Kp = zeros(N+1); Rq = zeros(N+1,1);
+for i=1:N
+j=i+1;
+kae=(((axe(i))+(axe(j)))/(2*Le))*[1 -1; -1 1]; %value of K for an element
+Ka(i:i+1,i:i+1) = Ka(i:i+1,i:i+1) + kae; %Ka matrix for an element
+kpe=((-Le/12)*[(3*pxe(i))+(pxe(j)) (pxe(i))+(pxe(j)); (pxe(i))+(pxe(j)) (3*pxe(j))+(pxe(i))]); %value of Kp for an element
+Kp(i:i+1,i:i+1) = Kp(i:i+1,i:i+1) + kpe; %Kp matrix for an element
+rqe=((Le/6)*[(2*qxe(i))+(qxe(j)); (2*qxe(j))+(qxe(i))]); %value of Rq for an element
+Rq(i:i+1,1) = Rq(i:i+1,1) + rqe; %overall Rq matrix
+end
+K_alpha=[alpha0*axe(1) zeros(1,N);zeros(N,N+1)]+[zeros(N,N+1); zeros(1,N) alphaL*axe(L)];
+R_beta=[beta0;zeros(N-1,1);betaL];
+K=Ka+Kp+K_alpha; %final K
+R=Rq+R_beta; % final R
+% eliminating rows and columns according to BCs
+if isnan(betaL) && ~isnan(beta0) %if betaL "is not a number"
+R(N+1,:)=[];%eliminate last row
+R = R - [zeros(N-1,1);uL*(K(N,N+1))]; %subtracting K(N,N+1) element
+K(:,N+1)=[];K(N+1,:)=[]; %eliminate last row and last column
+KK=(inv(K))*R;
+u= [KK;uL] %final u
+plot(x,u)
+hold on
+elseif isnan(beta0) && ~isnan(betaL) %if beta0 "is not a number"
+R(1,:)=[];%eliminate first row
+R = R - [u0*(K(2,1));zeros(N-1,1)]; %subtracting K(2,1) element
+K(1,:)=[]; K(:,1)=[]; %eliminate first row and first column
+KK=(inv(K))*R;
+u=[u0;KK] %final u
+plot(x,u)
+hold on
+else
+'error, check your EBC'
+end
