@@ -1,0 +1,46 @@
+%Written by Parth Patel, NEU 19 for FEM Spring 19 class to Professor Muftu HW7. 
+clc;clear;close all;
+N = 2; % number of elements
+no_of_nodes = 3;
+dof = 3*no_of_nodes; % no of dof
+CT(1:N,1)= [1 1]; 
+CT(1:N,2)= [3 2];
+b=[0.2 0.2];%in m
+h=[0.03 0.03];%in m
+Le = [1.5 1.5];%in m
+alpha = [pi+atan(sqrt(1.25)) (2*pi)-atan(sqrt(1.25))]; % in rad
+EE = 1e9*[20 20]; %in N/m^2
+K = zeros(dof); R = zeros(dof,1);% initialize [K] and {R}
+q0x=0; %UDL in X dir 
+q0y=-200; %in N/m  %UDL in +Y dir
+for e=1:N
+    i = CT(e,1);
+    j = CT(e,2);
+    A = b(e)*h(e);  E=EE(e);  L=Le(e); %in m   
+    I=(b(e)/12)*(h(e)^3); %in m^4
+    c=cos(alpha(e)); s=sin(alpha(e)); %short term notation for simplicity
+    T=[c s 0 0 0 0; -s c 0 0 0 0; 0 0 1 0 0 0;0 0 0 c s 0; 0 0 0 -s c 0;0 0 0 0 0 1]; %transformation matrix
+    km=E*A/L;   kb=E*I/L;
+    k_mb_desh_element=[km 0 0 -km 0 0;0 12*kb/L^2 6*kb/L 0 -12*kb/L^2 6*kb/L;0 6*kb/L 4*kb 0 -6*kb/L 2*kb;-km 0 0 km 0 0;0 -12*kb/L^2 -6*kb/L 0 12*kb/L^2 -6*kb/L;0 6*kb/L 2*kb 0 -6*kb/L 4*kb];
+    k_mb_element= T'*k_mb_desh_element*T;%element stiffness matrix in a global coordinate matrix
+   % assembly of K
+    K(2*i-1:3*i , 2*i-1:3*i) = K(2*i-1:3*i , 2*i-1:3*i) + k_mb_element(1:3,1:3);
+    K(2*i-1:3*i , 3*j-2:3*j) = K(2*i-1:3*i , 3*j-2:3*j) + k_mb_element(1:3,4:6);
+    K(3*j-2:3*j , 2*i-1:3*i) = K(3*j-2:3*j , 2*i-1:3*i) + k_mb_element(4:6,1:3);
+    K(3*j-2:3*j , 3*j-2:3*j) = K(3*j-2:3*j , 3*j-2:3*j) + k_mb_element(4:6,4:6);
+    
+    re(1,1:2*no_of_nodes) = [q0x q0y*Le(1)/2 q0y*Le(1)*Le(1)/12 q0x q0y*Le(1)/2 -q0y*Le(1)*Le(1)/12];
+    re(2,1:2*no_of_nodes) = [q0x q0y*Le(2)/2 q0y*Le(2)*Le(2)/12 q0x q0y*Le(2)/2 -q0y*Le(2)*Le(2)/12];
+    re_loc = re(e,:);
+ %   Assembly of R
+    R(2*i-1:3*i) = R(2*i-1:3*i) + re_loc(1:3)';
+    R(3*j-2:3*j) = R(3*j-2:3*j) + re_loc(4:6)';
+end
+% penalty
+kp=1e4*max(K(:));
+penalty=diag([0 0 0 kp kp 0 kp kp 0]); %penalty at fixed D.O.F.
+Kfinal=K+penalty;
+D=inv(Kfinal)*R;
+fprintf('The deflection is in "mm" and theta is in "radian" \n')
+D_in_mm=1e3*[D(1) D(2) D(3)*1e-3 D(4) D(5) D(6)*1e-3 D(7) D(8) D(9)*1e-3]'
+fprintf('it is clear that we do not have deflection at Nodes 2 and 3, but we have deflection at Node 1 in Y direction and at the angle_theta at all nodes \n')
